@@ -32,7 +32,7 @@ Claude Haiku (RAG prompt → answer)
 - Initialize FastAPI backend with health check endpoint
 - Configure environment variables (`.env`) for AWS credentials, region, S3 bucket name
 - Write `requirements.txt` and `Dockerfile`
-- Set up `docker-compose.yml` with app and PostgreSQL services
+- Set up `docker-compose.yml` for the app service
 - Initialize GitHub Actions CI workflow (lint + tests on push)
 
 ### Phase 2 — Document Ingestion Pipeline
@@ -59,7 +59,6 @@ Claude Haiku (RAG prompt → answer)
 - Deploy to Microsoft Azure using Docker Compose
 - Configure environment-based settings for dev/staging/prod
 - Add automated CD to Azure via GitHub Actions on merge to `main`
-- Set up PostgreSQL on Azure for conversation and upload history
 
 ---
 
@@ -73,7 +72,6 @@ Claude Haiku (RAG prompt → answer)
 | Vector Search | FAISS |
 | Document Storage | Amazon S3 |
 | Frontend | React, TypeScript, Tailwind CSS |
-| Database | PostgreSQL |
 | Infra | Docker, Docker Compose, Azure App Services |
 | CI/CD | GitHub Actions |
 
