@@ -18,6 +18,10 @@ env/
 *.index
 faiss_index/
 
+# Local document corpus (proprietary data — never commit)
+data/
+uploads/
+
 # IDE / OS
 .vscode/
 .idea/
