@@ -4,6 +4,11 @@ uvicorn[standard]==0.34.0
 pydantic-settings==2.7.1
 boto3==1.35.90
 
+# Ingestion pipeline (Phase 2)
+pymupdf==1.27.2.3
+faiss-cpu==1.14.3
+numpy==2.4.6
+
 # Dev / test
 pytest==8.3.4
 httpx==0.28.1
