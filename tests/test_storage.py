@@ -16,23 +16,25 @@ def test_local_fallback_writes_file(monkeypatch, tmp_path):
 
     written = tmp_path / "sub" / "manual.pdf"
     assert written.read_bytes() == b"hello world"   # bytes stored correctly
-    assert ref == str(written)                        # returns the local path
+    assert ref == str(written)                      # returns the local path
 
 
 def test_s3_upload_calls_put_object(monkeypatch):
     """When S3 is enabled, put_object is called and an s3:// URI is returned."""
+    # Temporarily change a value for this test.
     monkeypatch.setattr(storage.settings, "use_s3", True)
     monkeypatch.setattr(storage.settings, "s3_bucket", "test-bucket")
 
-    fake_client = mock.MagicMock()
-    monkeypatch.setattr(storage.boto3, "client", lambda *a, **k: fake_client)
+    fake_client = mock.MagicMock() # A fake object that records how its called
+    monkeypatch.setattr(storage.boto3, "client", lambda *a, **k: fake_client) # Swap AWS for the fake
 
     ref = storage.store_document(b"data", "manual.pdf")
 
+    # Verify the mock was called once, with exact args
     fake_client.put_object.assert_called_once_with(
         Bucket="test-bucket", Key="manual.pdf", Body=b"data"
     )
-    assert ref == "s3://test-bucket/manual.pdf"
+    assert ref == "s3://test-bucket/manual.pdf" # Verify the function's return value
 
 
 def test_s3_error_becomes_runtime_error(monkeypatch):
@@ -41,10 +43,12 @@ def test_s3_error_becomes_runtime_error(monkeypatch):
     monkeypatch.setattr(storage.settings, "s3_bucket", "test-bucket")
 
     fake_client = mock.MagicMock()
+    # Make the fake client fail 
     fake_client.put_object.side_effect = ClientError(
         {"Error": {"Code": "AccessDenied", "Message": "nope"}}, "PutObject"
     )
     monkeypatch.setattr(storage.boto3, "client", lambda *a, **k: fake_client)
 
+    # Assert that the block raises exception. This test expects failure.
     with pytest.raises(RuntimeError, match="Failed to upload"):
         storage.store_document(b"data", "manual.pdf")
