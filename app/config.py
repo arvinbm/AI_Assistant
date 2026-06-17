@@ -17,6 +17,9 @@ class Settings(BaseSettings):
 
     # Document storage
     s3_bucket: str | None = None
+    # Set True only when real AWS credentials + bucket are configured;
+    # otherwise files are saved to the local uploads/ folder.
+    use_s3: bool = False
 
     # AWS Bedrock model IDs
     bedrock_embedding_model_id: str = "amazon.titan-embed-text-v2:0"
