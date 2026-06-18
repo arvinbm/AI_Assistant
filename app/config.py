@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     # AWS Bedrock model IDs
     bedrock_embedding_model_id: str = "amazon.titan-embed-text-v2:0"
     bedrock_generation_model_id: str = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+    # Set True only when real AWS credentials are configured; otherwise a
+    # deterministic local pseudo-embedding is used so the pipeline can run.
+    use_bedrock: bool = False
 
     model_config = SettingsConfigDict(
         env_file=".env",
