@@ -2,10 +2,8 @@
 
 Turns text chunks into fixed-length vectors. When Bedrock is enabled, uses
 Amazon Titan Text Embeddings; otherwise falls back to a deterministic local
-pseudo-embedding so the ingestion pipeline can run (and be tested) without AWS.
+pseudo-embedding so the ingestion pipeline can run and be tested without AWS.
 
-WARNING: the local fallback vectors are NOT semantically meaningful — they only
-let the pipeline run end-to-end. Real retrieval quality requires Bedrock/Titan.
 """
 import hashlib
 import json
@@ -18,7 +16,7 @@ from app.config import get_settings
 
 settings = get_settings()
 
-# Vector dimension. Amazon Titan Text Embeddings V2 returns 1024 floats.
+# Vector dimension.
 EMBEDDING_DIM = 1024
 
 
@@ -42,6 +40,7 @@ def _embed_bedrock(text: str) -> list[float]:
         aws_access_key_id=settings.aws_access_key_id,
         aws_secret_access_key=settings.aws_secret_access_key,
     )
+
     try:
         response = client.invoke_model(
             modelId=settings.bedrock_embedding_model_id,
@@ -49,7 +48,10 @@ def _embed_bedrock(text: str) -> list[float]:
             contentType="application/json",
             accept="application/json",
         )
+        # Extract the embeddings & the token count
         payload = json.loads(response["body"].read())
+
+    # Amazon Titan refused to embed the text chunk or the connection was not established
     except (BotoCoreError, ClientError) as exc:
         raise RuntimeError(f"Bedrock embedding failed: {exc}") from exc
     
