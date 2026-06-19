@@ -2,7 +2,7 @@
 
 Chains the building blocks to ingest a single document into the knowledge base:
 
-    extract -> (skip if empty) -> store raw -> chunk -> embed -> add to index
+    extract -> (skip if empty) -> store raw -> normalize -> chunk -> embed -> add to index
 
 The caller passes in a VectorStore and owns loading/saving it, so bulk ingestion
 can add many documents and persist once (instead of saving after every file).
@@ -12,6 +12,7 @@ from app.services import storage
 from app.services.chunk import chunk_text
 from app.services.embeddings import embed_texts
 from app.services.extract import extract_text
+from app.services.normalize import normalize
 from app.services.vector_store import VectorStore
 
 
@@ -36,6 +37,8 @@ def ingest_document(content: bytes, filename: str, store: VectorStore) -> dict:
     # Preserve the raw file (S3 or local) before indexing it.
     storage.store_document(content, filename)
 
+    # Canonicalize Persian/mixed text so chunks and queries match consistently.
+    text = normalize(text)
     chunks = chunk_text(text)
     vectors = embed_texts(chunks)
     store.add(vectors, chunks, source=filename)
