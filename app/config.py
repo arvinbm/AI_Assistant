@@ -24,9 +24,15 @@ class Settings(BaseSettings):
     # AWS Bedrock model IDs
     bedrock_embedding_model_id: str = "amazon.titan-embed-text-v2:0"
     bedrock_generation_model_id: str = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
-    # Set True only when real AWS credentials are configured; otherwise a
-    # deterministic local pseudo-embedding is used so the pipeline can run.
-    use_bedrock: bool = False
+
+    # Which embedding backend to use:
+    #   "local"        - deterministic pseudo-embedding (no deps/AWS), for plumbing/tests
+    #   "bedrock"      - Amazon Titan Text Embeddings (needs AWS credentials)
+    #   "multilingual" - local sentence-transformers model (good for Farsi/mixed)
+    embedding_backend: str = "local"
+    # Multilingual model id (1024-dim, matches EMBEDDING_DIM). Requires
+    # `pip install -r requirements-ml.txt` when embedding_backend == "multilingual".
+    multilingual_model_id: str = "BAAI/bge-m3"
 
     model_config = SettingsConfigDict(
         env_file=".env",
