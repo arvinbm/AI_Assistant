@@ -18,6 +18,7 @@ import numpy as np
 
 from app.services import storage
 from app.services.embeddings import EMBEDDING_DIM
+from app.services.language import detect_language
 
 # Keys the index and its metadata are persisted under.
 # Used by both local and S3 storage
@@ -49,9 +50,11 @@ class VectorStore:
         # Add the vectors
         self.index.add(np.array(vectors, dtype="float32"))
 
-        # Add the metadata
+        # Add the metadata, tagging each chunk with its detected language.
         for text in chunks:
-            self.metadata.append({"text": text, "source": source})
+            self.metadata.append(
+                {"text": text, "source": source, "lang": detect_language(text)}
+            )
 
     def search(self, query_vector: list[float], k: int = 5) -> list[tuple[dict, float]]:
         """Return up to k nearest chunks as (metadata, distance) pairs.
