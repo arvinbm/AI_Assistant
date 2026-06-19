@@ -18,8 +18,8 @@ def test_add_grows_index_and_metadata():
 
     assert store.index.ntotal == 2
     assert store.metadata == [
-        {"text": "chunk A", "source": "doc.pdf"},
-        {"text": "chunk B", "source": "doc.pdf"},
+        {"text": "chunk A", "source": "doc.pdf", "lang": "en"},
+        {"text": "chunk B", "source": "doc.pdf", "lang": "en"},
     ]
 
 
@@ -39,7 +39,7 @@ def test_search_returns_nearest_with_metadata_and_distance():
 
     assert len(results) == 1
     meta, dist = results[0]
-    assert meta == {"text": "B", "source": "doc.pdf"}
+    assert meta == {"text": "B", "source": "doc.pdf", "lang": "en"}
     assert dist == pytest.approx(0.0, abs=1e-3)
 
 
@@ -61,7 +61,7 @@ def test_save_and_load_round_trip(monkeypatch, tmp_path):
     assert reloaded.metadata == store.metadata
     # Search still works after reload.
     meta, _ = reloaded.search(_vec(1), k=1)[0]
-    assert meta == {"text": "A", "source": "doc.pdf"}
+    assert meta == {"text": "A", "source": "doc.pdf", "lang": "en"}
 
 
 def test_load_with_nothing_persisted_returns_empty(monkeypatch, tmp_path):
