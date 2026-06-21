@@ -55,14 +55,15 @@ Embeddings run **locally for free**; AWS is only used for **Claude Haiku generat
 ### Phase 1 — Foundation ✅
 - FastAPI backend with health check, env-based config, `Dockerfile`, `docker-compose.yml`, GitHub Actions CI (lint + tests).
 
-### Phase 2 — Document Ingestion Pipeline *(in progress)*
+### Phase 2 — Document Ingestion Pipeline ✅
 - Extract text from PDFs with **PyMuPDF**; skip scanned/empty docs (no OCR).
 - **Normalize** Persian/mixed text; split into overlapping chunks.
-- Embed chunks with **BGE-m3**; store raw files in S3/local; tag each chunk with its language.
+- Embed chunks with **BGE-m3** (batched, ~4× faster); store raw files in S3/local; tag each chunk with its language.
 - Build and persist a **FAISS** index (+ chunk text/source/lang) to S3/local.
-- Bulk-ingest the base corpus (one-time) and accept ongoing **`/upload`s**.
+- Bulk-ingest the base corpus one-time via `scripts/build_index.py`, and accept ongoing uploads via **`POST /upload`**.
+- The real corpus (~3,000 mixed Farsi/English documents) has been ingested into a **32,607-vector** index and validated end-to-end.
 
-### Phase 3 — RAG Query Pipeline
+### Phase 3 — RAG Query Pipeline *(next)*
 - `/chat` endpoint: normalize + embed the question, retrieve **top-30** from FAISS, **rerank** to **top-8**, build a grounded prompt, and answer with **Claude Haiku**.
 - Source attribution (which document each chunk came from); relevance threshold to avoid answering off-topic questions.
 
