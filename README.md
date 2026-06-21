@@ -1,6 +1,6 @@
 # AI Assistant — Industrial Belt Assembly
 
-An AI-powered document assistant built for an industrial belt assembly company. It lets technicians and staff query internal product documentation, assembly manuals, customer records, and specifications in natural language — in **Persian (Farsi), English, or a mix of both**.
+An AI-powered document assistant built for an industrial belt assembly company. It lets staff query internal company documents in natural language — in **Persian (Farsi), English, or a mix of both**.
 
 Built with **Python**, **FastAPI**, a local **multilingual embedding model (BGE-m3)**, **FAISS**, **Amazon S3**, and **Claude Haiku (AWS Bedrock)** for answer generation.
 
@@ -25,14 +25,14 @@ Raw files live in **Amazon S3**; the FAISS index + metadata are persisted there 
 
 ## Multilingual (Farsi / English) handling
 
-The corpus is **mixed-language**: some documents are English (product data sheets), some are Persian (customer records, the product catalog), and **many individual documents contain both** (Persian prose with English part numbers, model codes, and terms). This is the central challenge of the project, addressed by:
+The corpus is **mixed-language**: some documents are English, some are Persian, and **many individual documents contain both** (Persian prose with English part numbers, model codes, and terms). This is the central challenge of the project, addressed by:
 
 - **Persian text normalization** — Persian text appears in inconsistent forms (Arabic vs Persian yeh/kaf, Arabic-Indic vs Persian digits, ZWNJ, diacritics, tatweel). The same word written two ways silently fails to match. All text is normalized to one canonical form, applied to **both documents and queries**. ASCII (English words, part numbers) is left untouched.
-- **Unified cross-lingual embeddings** — instead of partitioning by language (which breaks on mixed chunks), everything is embedded into **one shared semantic space** with **BGE-m3**, a multilingual model. This was validated on the real corpus: Farsi→Farsi, English→English, **English↔Farsi cross-lingual**, and mixed-chunk retrieval all work. A Persian question can surface the relevant English data sheet and vice-versa.
+- **Unified cross-lingual embeddings** — instead of partitioning by language (which breaks on mixed chunks), everything is embedded into **one shared semantic space** with **BGE-m3**, a multilingual model. This was validated on the real corpus: Farsi→Farsi, English→English, **English↔Farsi cross-lingual**, and mixed-chunk retrieval all work. A Persian question can surface the relevant English document and vice-versa.
 - **Language tagging** — each chunk is tagged `fa` / `en` / `mixed` / `unknown` in its metadata for debugging and optional weighting (not a hard filter).
 - **Reranking** — a multilingual cross-encoder reranker (BGE-reranker-v2-m3) re-scores the top candidates for sharper relevance across languages.
 
-Scanned / image-only PDFs (no extractable text) are skipped by design (no OCR), except the product catalog, which was OCR'd once into a searchable text sidecar.
+Scanned / image-only PDFs (no extractable text) are skipped by design (no OCR), except one high-value document, which was OCR'd once into a searchable text sidecar.
 
 ---
 
