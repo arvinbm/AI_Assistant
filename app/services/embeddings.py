@@ -23,6 +23,9 @@ settings = get_settings()
 # Vector dimension (Titan v2 and BGE-m3 both produce 1024-dim vectors).
 EMBEDDING_DIM = 1024
 
+# How many texts to encode per batch in the multilingual backend.
+BATCH_SIZE = 32
+
 # Lazily-loaded multilingual model (kept module-level so it loads only once).
 _multilingual_model = None
 
@@ -38,7 +41,15 @@ def embed_text(text: str) -> list[float]:
 
 
 def embed_texts(texts: list[str]) -> list[list[float]]:
-    """Embed a list of texts, returning one vector per input."""
+    """Embed a list of texts, returning one vector per input.
+
+    For the multilingual backend this encodes the whole list in batches (one
+    model call per batch) — far faster than embedding one chunk at a time.
+    """
+    if not texts:
+        return []
+    if settings.embedding_backend == "multilingual":
+        return _embed_multilingual_batch(texts)
     return [embed_text(text) for text in texts]
 
 
@@ -69,8 +80,8 @@ def _embed_bedrock(text: str) -> list[float]:
     return payload["embedding"]
 
 
-def _embed_multilingual(text: str) -> list[float]:
-    """Embed with a local multilingual sentence-transformers model (e.g. BGE-m3).
+def _get_multilingual_model():
+    """Load (once) and return the local multilingual model.
 
     Imported lazily so the heavy dependency (sentence-transformers / torch) is
     only needed when this backend is actually selected.
@@ -85,8 +96,24 @@ def _embed_multilingual(text: str) -> list[float]:
                 "Install it with: pip install -r requirements-ml.txt"
             ) from exc
         _multilingual_model = SentenceTransformer(settings.multilingual_model_id)
-    vector = _multilingual_model.encode(text, normalize_embeddings=True)
+    return _multilingual_model
+
+
+def _embed_multilingual(text: str) -> list[float]:
+    """Embed a single text with the local multilingual model (e.g. BGE-m3)."""
+    vector = _get_multilingual_model().encode(text, normalize_embeddings=True)
     return vector.tolist()
+
+
+def _embed_multilingual_batch(texts: list[str]) -> list[list[float]]:
+    """Embed many texts in one batched model call (much faster than per-text)."""
+    vectors = _get_multilingual_model().encode(
+        texts,
+        normalize_embeddings=True,
+        batch_size=BATCH_SIZE,
+        show_progress_bar=False,
+    )
+    return [vector.tolist() for vector in vectors]
 
 
 def _embed_local(text: str) -> list[float]:
