@@ -86,3 +86,16 @@ def test_multilingual_backend_uses_local_model(monkeypatch):
 
     assert result == [0.1, 0.2, 0.3]
     fake_model.encode.assert_called_once()
+
+
+def test_multilingual_embed_texts_uses_one_batched_call(monkeypatch):
+    """embed_texts encodes the whole list in a single model call (batched)."""
+    monkeypatch.setattr(embeddings.settings, "embedding_backend", "multilingual")
+    fake_model = mock.MagicMock()
+    fake_model.encode.return_value = np.array([[0.1, 0.2], [0.3, 0.4]])
+    monkeypatch.setattr(embeddings, "_multilingual_model", fake_model)
+
+    result = embed_texts(["a", "b"])
+
+    assert result == [[0.1, 0.2], [0.3, 0.4]]
+    fake_model.encode.assert_called_once()        # ONE call for both texts
