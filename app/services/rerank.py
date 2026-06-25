@@ -16,6 +16,10 @@ settings = get_settings()
 # Default number of chunks to keep after reranking.
 DEFAULT_TOP_K = 8
 
+# How many (query, chunk) pairs to score per forward pass. Keeping this small
+# bounds peak memory when reranking a wide candidate set.
+RERANK_BATCH_SIZE = 8
+
 # Lazily-loaded cross-encoder model (loaded once, reused after).
 _reranker_model = None
 
@@ -52,7 +56,7 @@ def rerank(query: str, candidates: list[dict], top_k: int = DEFAULT_TOP_K) -> li
 
     model = _get_reranker_model()
     pairs = [(query, candidate["text"]) for candidate in candidates]
-    scores = model.predict(pairs)
+    scores = model.predict(pairs, batch_size=RERANK_BATCH_SIZE, show_progress_bar=False)
 
     ranked = sorted(zip(candidates, scores), key=lambda pair: pair[1], reverse=True)
     return [(meta, float(score)) for meta, score in ranked[:top_k]]
