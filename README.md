@@ -15,7 +15,7 @@ Ingestion:   document → extract (PyMuPDF) → normalize (Farsi) → chunk
                       → embed (BGE-m3) → FAISS index (+ chunk text/source/lang)
 
 Query:       question → normalize → embed (BGE-m3)
-                      → FAISS top-30 → rerank (cross-encoder) → top-8
+                      → FAISS top-15 → rerank (cross-encoder) → top-8
                       → Claude Haiku → grounded answer + citations
 ```
 
@@ -64,7 +64,7 @@ Embeddings run **locally for free**; AWS is only used for **Claude Haiku generat
 - The real corpus (~3,000 mixed Farsi/English documents) has been ingested into a **32,607-vector** index and validated end-to-end.
 
 ### Phase 3 — RAG Query Pipeline *(next)*
-- `/chat` endpoint: normalize + embed the question, retrieve **top-30** from FAISS, **rerank** to **top-8**, build a grounded prompt, and answer with **Claude Haiku**.
+- `/chat` endpoint: normalize + embed the question, retrieve **top-15** from FAISS, **rerank** to **top-8**, build a grounded prompt, and answer with **Claude Haiku**.
 - Source attribution (which document each chunk came from); relevance threshold to avoid answering off-topic questions.
 
 ### Phase 4 — Frontend
