@@ -33,6 +33,8 @@ class Settings(BaseSettings):
     # Multilingual model id (1024-dim, matches EMBEDDING_DIM). Requires
     # `pip install -r requirements-ml.txt` when embedding_backend == "multilingual".
     multilingual_model_id: str = "BAAI/bge-m3"
+    # Multilingual cross-encoder used to rerank retrieved chunks.
+    reranker_model_id: str = "BAAI/bge-reranker-v2-m3"
 
     model_config = SettingsConfigDict(
         env_file=".env",
