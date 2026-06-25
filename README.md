@@ -8,16 +8,20 @@ Built with **Python**, **FastAPI**, a local **multilingual embedding model (BGE-
 
 ## Architecture
 
-Documents are extracted to text, **normalized**, split into chunks, embedded with a **multilingual model (BGE-m3)**, and indexed in a **FAISS** vector store (persisted to S3 or locally). At query time the question is normalized and embedded the same way, the closest chunks are retrieved from FAISS, **reranked** with a cross-encoder, and the best are passed to **Claude Haiku**, which generates a grounded, cited answer.
+Documents are extracted to text, **normalized**, split into chunks, embedded with a **multilingual model (BGE-m3)**, and indexed in a **FAISS** vector store (persisted to S3 or locally). At query time the question is normalized and run through **hybrid retrieval** — semantic **vector search** plus **BM25 keyword search** — whose results are merged, **reranked** with a cross-encoder, and the best are passed to **Claude Haiku**, which generates a grounded, cited answer.
 
 ```
 Ingestion:   document → extract (PyMuPDF) → normalize (Farsi) → chunk
                       → embed (BGE-m3) → FAISS index (+ chunk text/source/lang)
+                      → BM25 keyword index
 
-Query:       question → normalize → embed (BGE-m3)
-                      → FAISS top-15 → rerank (cross-encoder) → top-8
+Query:       question → normalize → ┌─ vector search (BGE-m3 → FAISS) ─┐
+                                    └─ keyword search (BM25) ──────────┘
+                      → merge → rerank (cross-encoder) → top-8
                       → Claude Haiku → grounded answer + citations
 ```
+
+**Why hybrid:** pure vector search captures meaning but misses **exact tokens** — part numbers, model codes, customer names (e.g. `8M-1200`). BM25 keyword search matches those exactly, so lookups by code or name work alongside semantic questions.
 
 Raw files live in **Amazon S3**; the FAISS index + metadata are persisted there too, so the deployed app loads a pre-built index on startup and never needs the original corpus.
 
@@ -63,9 +67,10 @@ Embeddings run **locally for free**; AWS is only used for **Claude Haiku generat
 - Bulk-ingest the base corpus one-time via `scripts/build_index.py`, and accept ongoing uploads via **`POST /upload`**.
 - The real corpus (~3,000 mixed Farsi/English documents) has been ingested into a **32,607-vector** index and validated end-to-end.
 
-### Phase 3 — RAG Query Pipeline *(next)*
-- `/chat` endpoint: normalize + embed the question, retrieve **top-15** from FAISS, **rerank** to **top-8**, build a grounded prompt, and answer with **Claude Haiku**.
+### Phase 3 — RAG Query Pipeline
+- `/chat` endpoint: normalize the question, retrieve via **hybrid search** (vector + BM25 keyword), **rerank** the merged candidates to **top-8**, build a grounded prompt, and answer with **Claude Haiku**. ✅ working end-to-end
 - Source attribution (which document each chunk came from); relevance threshold to avoid answering off-topic questions.
+- **Hybrid search** *(in progress)* — adds BM25 keyword retrieval alongside vector search so exact-token lookups (part numbers, model codes, customer names) work, not just semantic questions.
 
 ### Phase 4 — Frontend
 - React/TypeScript chat interface + document upload panel, source citations, Tailwind CSS, mobile-responsive.
@@ -83,6 +88,7 @@ Embeddings run **locally for free**; AWS is only used for **Claude Haiku generat
 | Text extraction | PyMuPDF |
 | Embeddings | BGE-m3 (local, multilingual) — Titan optional |
 | Vector search | FAISS |
+| Keyword search | BM25 (hybrid retrieval) |
 | Reranking | BGE-reranker-v2-m3 (multilingual cross-encoder) |
 | Generation | Claude Haiku (AWS Bedrock) |
 | Document storage | Amazon S3 (local-folder fallback) |
