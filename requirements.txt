@@ -10,6 +10,9 @@ pymupdf==1.27.2.3
 faiss-cpu==1.14.3
 numpy==2.4.6
 
+# Hybrid retrieval (Phase 3) — BM25 keyword search
+rank-bm25==0.2.2
+
 # Dev / test
 pytest==8.3.4
 httpx==0.28.1
