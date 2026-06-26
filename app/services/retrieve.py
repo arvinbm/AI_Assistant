@@ -1,19 +1,23 @@
 """Retrieval orchestration for the RAG query path.
 
-Given a user question, returns the most relevant chunks to ground an answer:
+Given a user question, returns the most relevant chunks to ground an answer via
+**hybrid search**:
 
-    normalize -> embed (BGE-m3) -> FAISS top-N candidates -> rerank -> top-k
+    normalize -> ┌─ vector search (BGE-m3 -> FAISS) ─┐
+                 └─ keyword search (BM25) ───────────┘ -> merge -> rerank -> top-k
 
-A relevance threshold guards against off-topic questions: chunks scoring below it
-are dropped, so an off-topic query yields an empty list and the caller can say
+Vector search captures meaning; BM25 captures exact tokens (part numbers, model
+codes, customer names) that embeddings miss. The merged candidates are reranked,
+and a relevance threshold drops off-topic results so the caller can say
 "I don't have information on that" instead of forcing an answer.
 """
 from app.services.embeddings import embed_text
+from app.services.keyword_search import KeywordIndex
 from app.services.normalize import normalize
 from app.services.rerank import rerank
 from app.services.vector_store import VectorStore
 
-# How many candidates to pull from FAISS before reranking.
+# How many candidates each retriever contributes before reranking.
 CANDIDATE_COUNT = 15
 # How many reranked chunks to keep at most.
 TOP_K = 8
@@ -21,7 +25,9 @@ TOP_K = 8
 RELEVANCE_THRESHOLD = 0.5
 
 
-def retrieve(query: str, store: VectorStore) -> list[tuple[dict, float]]:
+def retrieve(
+    query: str, store: VectorStore, keyword_index: KeywordIndex
+) -> list[tuple[dict, float]]:
     """Return the relevant (metadata, score) chunks for a query, best first.
 
     An empty list means nothing cleared the relevance threshold — i.e. the
@@ -31,9 +37,25 @@ def retrieve(query: str, store: VectorStore) -> list[tuple[dict, float]]:
     if not normalized:
         return []
 
-    query_vector = embed_text(normalized)
-    candidates = [meta for meta, _dist in store.search(query_vector, k=CANDIDATE_COUNT)]
-    ranked = rerank(normalized, candidates, top_k=TOP_K)
+    # Two retrievers: semantic (vector) and exact-token (keyword).
+    vector_hits = store.search(embed_text(normalized), k=CANDIDATE_COUNT)
+    keyword_hits = keyword_index.search(normalized, top_k=CANDIDATE_COUNT)
 
-    # Keep only chunks that are actually relevant.
+    candidates = _merge_candidates(
+        [meta for meta, _ in vector_hits] + [meta for meta, _ in keyword_hits]
+    )
+
+    ranked = rerank(normalized, candidates, top_k=TOP_K)
     return [(meta, score) for meta, score in ranked if score >= RELEVANCE_THRESHOLD]
+
+
+def _merge_candidates(metadatas: list[dict]) -> list[dict]:
+    """Deduplicate chunks (by source + text), preserving first-seen order."""
+    seen: set[tuple[str, str]] = set()
+    unique: list[dict] = []
+    for meta in metadatas:
+        key = (meta["source"], meta["text"])
+        if key not in seen:
+            seen.add(key)
+            unique.append(meta)
+    return unique
