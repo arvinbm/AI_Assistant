@@ -8,14 +8,16 @@ from app.config import get_settings
 from app.services.embeddings import embed_text
 from app.services.generate import generate_answer
 from app.services.ingest import ingest_document
+from app.services.keyword_search import KeywordIndex
 from app.services.rerank import rerank
 from app.services.retrieve import retrieve
 from app.services.vector_store import VectorStore
 
 settings = get_settings()
 
-# The knowledge-base index, loaded once and shared across requests.
+# The knowledge base, loaded once and shared across requests.
 _store: VectorStore | None = None
+_keyword_index: KeywordIndex | None = None
 
 
 def get_store() -> VectorStore:
@@ -26,10 +28,19 @@ def get_store() -> VectorStore:
     return _store
 
 
+def get_keyword_index() -> KeywordIndex:
+    """Return the shared BM25 index, building it from the store on first use."""
+    global _keyword_index
+    if _keyword_index is None:
+        _keyword_index = KeywordIndex(get_store().metadata)
+    return _keyword_index
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     """Load the index and warm up the models once at startup."""
     get_store()
+    get_keyword_index()
     try:
         # Pre-load the embedding + reranker models so the first query is fast.
         embed_text("warm up")
@@ -78,13 +89,15 @@ async def upload(file: UploadFile) -> dict:
 
     if result["status"] == "ingested":
         store.save()
+        global _keyword_index
+        _keyword_index = None  # rebuild on next query to include the new chunks
     return result
 
 
 @app.post("/chat", tags=["chat"])
 def chat(request: ChatRequest) -> dict:
     """Answer a question from the knowledge base (retrieve -> rerank -> generate)."""
-    chunks = retrieve(request.question, get_store())
+    chunks = retrieve(request.question, get_store(), get_keyword_index())
     if not chunks:
         return {
             "answer": "I don't have information about that in the available documents.",
