@@ -11,10 +11,11 @@ def _fake_store(candidates):
     return store
 
 
-def _fake_keyword_index(candidates):
-    """A keyword index whose search returns the given candidate metadata dicts."""
+def _fake_keyword_index(search_results=None, distinctive_results=None):
+    """A keyword index returning the given hits for search / search_distinctive."""
     index = mock.MagicMock()
-    index.search.return_value = [(c, 1.0) for c in candidates]
+    index.search.return_value = [(c, 1.0) for c in (search_results or [])]
+    index.search_distinctive.return_value = [(c, 2.0) for c in (distinctive_results or [])]
     return index
 
 
@@ -34,15 +35,28 @@ def test_retrieve_keeps_only_chunks_above_threshold(monkeypatch):
 
     result = retrieve.retrieve("belt?", store, keyword)
 
-    # C (0.30) is below RELEVANCE_THRESHOLD and is dropped.
+    # C (0.30) is below the rerank threshold and there are no keyword hits to rescue it.
     assert [m["text"] for m, _ in result] == ["B", "A"]
 
 
+def test_retrieve_rescues_strong_keyword_match(monkeypatch):
+    # Exact-entity case: reranker underrates everything, but a keyword hit is kept.
+    entity = {"text": "8M-1200 invoice line", "source": "inv.pdf"}
+    store = _fake_store([{"text": "noise", "source": "n.pdf"}])
+    keyword = _fake_keyword_index(search_results=[entity])
+    monkeypatch.setattr(retrieve, "embed_text", lambda *_: [0.0] * 1024)
+    monkeypatch.setattr(retrieve, "rerank", lambda q, c, top_k: [(m, 0.1) for m in c])
+
+    result = retrieve.retrieve("8M-1200", store, keyword)
+
+    # Nothing clears 0.5, but the strong keyword match is rescued.
+    assert any(m["source"] == "inv.pdf" for m, _ in result)
+
+
 def test_retrieve_merges_and_dedupes_vector_and_keyword(monkeypatch):
-    # Same chunk found by BOTH retrievers should be reranked only once.
     shared = {"text": "8M-1200 belt", "source": "inv.pdf"}
     store = _fake_store([shared, {"text": "other", "source": "x.pdf"}])
-    keyword = _fake_keyword_index([shared])  # duplicate of the vector hit
+    keyword = _fake_keyword_index(search_results=[shared])  # duplicate of a vector hit
     monkeypatch.setattr(retrieve, "embed_text", lambda *_: [0.0] * 1024)
 
     captured = {}
@@ -54,15 +68,15 @@ def test_retrieve_merges_and_dedupes_vector_and_keyword(monkeypatch):
     monkeypatch.setattr(retrieve, "rerank", fake_rerank)
     retrieve.retrieve("8M-1200", store, keyword)
 
-    # 3 inputs (2 vector + 1 keyword) but the shared chunk is deduped -> 2 unique.
+    # 2 vector + 1 keyword, but the shared chunk is deduped -> 2 unique candidates.
     assert len(captured["candidates"]) == 2
 
 
 def test_retrieve_off_topic_returns_empty(monkeypatch):
     store = _fake_store([{"text": "X", "source": "x"}])
-    keyword = _fake_keyword_index([])
+    keyword = _fake_keyword_index([])  # no keyword matches for off-topic
     monkeypatch.setattr(retrieve, "embed_text", lambda *_: [0.0] * 1024)
-    monkeypatch.setattr(retrieve, "rerank", lambda *a, **k: [({"text": "X"}, 0.39)])
+    monkeypatch.setattr(retrieve, "rerank", lambda *a, **k: [({"text": "X", "source": "x"}, 0.39)])
 
     assert retrieve.retrieve("capital of France?", store, keyword) == []
 
