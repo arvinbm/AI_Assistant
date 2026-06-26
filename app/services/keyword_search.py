@@ -5,6 +5,11 @@ codes, customer names (e.g. ``8M-1200``) — that dense embeddings miss. It is
 built over the same normalized chunk text used for embeddings, so Persian and
 English tokens line up at query time.
 
+Two search modes:
+- ``search`` uses all query tokens (good general keyword recall).
+- ``search_distinctive`` uses only the query's rarest (highest-IDF) tokens, so an
+  exact code isn't drowned out by common words like "what" / "belt" / "model".
+
 Only chunks with a positive BM25 score (an actual term overlap) are returned, so
 a query that matches just two chunks returns two — never padded with non-matches.
 """
@@ -33,11 +38,11 @@ class KeywordIndex:
             BM25Okapi([tokenize(m["text"]) for m in metadatas]) if metadatas else None
         )
 
-    def search(self, query: str, top_k: int = DEFAULT_TOP_K) -> list[tuple[dict, float]]:
-        """Return up to ``top_k`` chunks with a positive BM25 score, best first."""
-        if self._bm25 is None:
+    def _search_tokens(self, tokens: list[str], top_k: int) -> list[tuple[dict, float]]:
+        """Score all chunks against `tokens`; return positive matches, best first."""
+        if self._bm25 is None or not tokens:
             return []
-        scores = self._bm25.get_scores(tokenize(query))
+        scores = self._bm25.get_scores(tokens)
         ranked = sorted(
             (
                 (self.metadatas[i], float(score))
@@ -48,3 +53,25 @@ class KeywordIndex:
             reverse=True,
         )
         return ranked[:top_k]
+
+    def search(self, query: str, top_k: int = DEFAULT_TOP_K) -> list[tuple[dict, float]]:
+        """Keyword search using all query tokens."""
+        return self._search_tokens(tokenize(query), top_k)
+
+    def search_distinctive(
+        self, query: str, n_tokens: int = 2, top_k: int = 5
+    ) -> list[tuple[dict, float]]:
+        """Search using only the query's rarest (highest-IDF) tokens.
+
+        Isolates exact codes/identifiers (e.g. ``8m-1200``) from common words, so
+        a single distinctive token isn't outweighed by many common ones.
+        """
+        if self._bm25 is None:
+            return []
+        ranked_tokens = sorted(
+            ((t, self._bm25.idf.get(t, 0.0)) for t in set(tokenize(query))),
+            key=lambda pair: pair[1],
+            reverse=True,
+        )
+        distinctive = [t for t, idf in ranked_tokens[:n_tokens] if idf > 0]
+        return self._search_tokens(distinctive, top_k)
