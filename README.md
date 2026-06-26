@@ -67,10 +67,9 @@ Embeddings run **locally for free**; AWS is only used for **Claude Haiku generat
 - Bulk-ingest the base corpus one-time via `scripts/build_index.py`, and accept ongoing uploads via **`POST /upload`**.
 - The real corpus (~3,000 mixed Farsi/English documents) has been ingested into a **32,607-vector** index and validated end-to-end.
 
-### Phase 3 — RAG Query Pipeline
-- `/chat` endpoint: normalize the question, retrieve via **hybrid search** (vector + BM25 keyword), **rerank** the merged candidates to **top-8**, build a grounded prompt, and answer with **Claude Haiku**. ✅ working end-to-end
-- Source attribution (which document each chunk came from); relevance threshold to avoid answering off-topic questions.
-- **Hybrid search** *(in progress)* — adds BM25 keyword retrieval alongside vector search so exact-token lookups (part numbers, model codes, customer names) work, not just semantic questions.
+### Phase 3 — RAG Query Pipeline ✅
+- `/chat` endpoint: normalize the question, retrieve via **hybrid search** (vector + BM25 keyword), **rerank** the merged candidates, build a grounded prompt, and answer with **Claude Haiku** — grounded and cited. Working end-to-end on the real corpus.
+- **Hybrid scoring** — pure vector + reranker handles semantic questions, but the reranker underrates exact-entity lookups (it scores them as low as off-topic). So results are kept if they clear the rerank threshold **or** are a strong keyword match (a *keyword-rescue gate*). A **distinctive-token search** (querying only the rarest tokens) stops common words from drowning out exact codes. This makes part-number and customer-name lookups work, not just semantic questions, while off-topic queries still return nothing.
 
 ### Phase 4 — Frontend
 - React/TypeScript chat interface + document upload panel, source citations, Tailwind CSS, mobile-responsive.
