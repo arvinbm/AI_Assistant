@@ -20,7 +20,7 @@ _store: VectorStore | None = None
 _keyword_index: KeywordIndex | None = None
 
 
-def get_store() -> VectorStore:
+def get_FAISS_index() -> VectorStore:
     """Return the shared VectorStore, loading it from storage on first use."""
     global _store
     if _store is None:
@@ -28,19 +28,19 @@ def get_store() -> VectorStore:
     return _store
 
 
-def get_keyword_index() -> KeywordIndex:
+def get_BM25_index() -> KeywordIndex:
     """Return the shared BM25 index, building it from the store on first use."""
     global _keyword_index
     if _keyword_index is None:
-        _keyword_index = KeywordIndex(get_store().metadata)
+        _keyword_index = KeywordIndex(get_FAISS_index().metadata)
     return _keyword_index
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     """Load the index and warm up the models once at startup."""
-    get_store()
-    get_keyword_index()
+    get_FAISS_index()
+    get_BM25_index()
     try:
         # Pre-load the embedding + reranker models so the first query is fast.
         embed_text("warm up")
@@ -81,7 +81,7 @@ async def upload(file: UploadFile) -> dict:
         raise HTTPException(status_code=400, detail="No filename provided.")
 
     content = await file.read()
-    store = get_store()
+    store = get_FAISS_index()
     try:
         result = ingest_document(content, file.filename, store)
     except ValueError as exc:  # unsupported file type
@@ -97,7 +97,7 @@ async def upload(file: UploadFile) -> dict:
 @app.post("/chat", tags=["chat"])
 def chat(request: ChatRequest) -> dict:
     """Answer a question from the knowledge base (retrieve -> rerank -> generate)."""
-    chunks = retrieve(request.question, get_store(), get_keyword_index())
+    chunks = retrieve(request.question, get_FAISS_index(), get_BM25_index())
     if not chunks:
         return {
             "answer": "I don't have information about that in the available documents.",
