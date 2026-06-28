@@ -1,1 +1,10 @@
 @import "tailwindcss";
+
+@theme {
+  /* Fonts */
+  --font-display: "Poppins", sans-serif;     /* English headings + UI */
+  --font-persian: "Vazirmatn", sans-serif;   /* Persian text */
+
+  /* Brand colour (the green we're using for Habasit) */
+  --color-habasit: #22c55e;
+}
