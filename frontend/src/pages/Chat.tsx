@@ -1,5 +1,8 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import { askQuestionStream } from '../api'
 
 type Message = {
   role: 'user' | 'assistant'
@@ -11,25 +14,50 @@ function Chat() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
 
-  function handleSend(event: React.SyntheticEvent) {
+  async function handleSend(event: React.SyntheticEvent) {
     event.preventDefault() // stop the form from reloading the page
     const question = input.trim()
     if (!question) return // ignore empty sends
 
-    setMessages((prev) => [...prev, { role: 'user', text: question }])
+    // Add the user's message AND an empty assistant bubble to fill as tokens arrive.
+    setMessages((prev) => [
+      ...prev,
+      { role: 'user', text: question },
+      { role: 'assistant', text: '' },
+    ])
     setInput('') // clear the box
+
+    // Append text to the last message (the assistant bubble we just added).
+    function updateLast(updater: (text: string) => string) {
+      setMessages((prev) => {
+        const updated = [...prev]
+        const last = updated[updated.length - 1]
+        updated[updated.length - 1] = { ...last, text: updater(last.text) }
+        return updated
+      })
+    }
+
+    try {
+      await askQuestionStream(question, {
+        onToken: (text) => updateLast((current) => current + text),
+      })
+    } catch {
+      updateLast(
+        () => 'Sorry — I could not reach the assistant. Is the backend running?',
+      )
+    }
   }
 
   return (
     <div
-      className="relative min-h-screen bg-cover bg-center"
+      className="relative h-screen overflow-hidden bg-cover bg-center"
       style={{ backgroundImage: "url('/Payvand_Background.jpg')" }}
     >
       {/* Dark Overlay */}
       <div className="absolute inset-0 bg-black/60" />
 
       {/* Foreground: a full-height column — header, thread, input bar */}
-      <div className="relative z-10 flex min-h-screen flex-col">
+      <div className="relative z-10 flex h-screen flex-col">
         {/* Header */}
         <header className="flex items-center justify-between px-6 py-4 sm:px-10">
           <h1 className="font-display text-2xl font-bold text-habasit">
@@ -44,7 +72,7 @@ function Chat() {
         </header>
 
         {/* Message thread (scrolls when it overflows) */}
-        <main className="flex-1 overflow-y-auto px-4 sm:px-10">
+        <main className="min-h-0 flex-1 overflow-y-auto px-4 sm:px-10">
           <div className="mx-auto max-w-3xl space-y-4 py-6">
             {messages.length === 0 ? (
               <p className="font-display mt-20 text-center text-gray-400">
@@ -59,13 +87,28 @@ function Chat() {
                   }`}
                 >
                   <div
+                    dir="auto"
                     className={`font-display max-w-[80%] rounded-2xl px-4 py-3 shadow-md ${
                       message.role === 'user'
                         ? 'bg-habasit text-white'
                         : 'bg-gray-800/90 text-gray-100'
                     }`}
                   >
-                    {message.text}
+                    {message.role === 'assistant' ? (
+                      message.text === '' ? (
+                        <span className="animate-pulse text-gray-400">
+                          Thinking…
+                        </span>
+                      ) : (
+                        <div className="prose prose-sm prose-invert max-w-none">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {message.text}
+                          </ReactMarkdown>
+                        </div>
+                      )
+                    ) : (
+                      message.text
+                    )}
                   </div>
                 </div>
               ))
