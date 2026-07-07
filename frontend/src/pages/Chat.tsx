@@ -7,6 +7,7 @@ import { askQuestion } from '../api'
 type Message = {
   role: 'user' | 'assistant'
   text: string
+  sources?: string[] // Optional - only assistant messages use this
 }
 
 function Chat() {
@@ -35,10 +36,10 @@ function Chat() {
     setInput('') // clear the box
 
     // Replace the empty assistant bubble (the last message) with some text.
-    function setLastText(text: string) {
+    function setLastText(text: string, sources: string[] = []) {
       setMessages((prev) => {
         const updated = [...prev]
-        updated[updated.length - 1] = { role: 'assistant', text }
+        updated[updated.length - 1] = { role: 'assistant', text, sources}
         return updated
       })
     }
@@ -46,7 +47,7 @@ function Chat() {
     setIsLoading(true)
     try {
       const data = await askQuestion(question)
-      setLastText(data.answer)
+      setLastText(data.answer, data.sources)
     } catch {
       setLastText(
         'Sorry — I could not reach the assistant. Is the backend running?',
@@ -108,11 +109,19 @@ function Chat() {
                           Thinking…
                         </span>
                       ) : (
-                        <div className="prose prose-sm prose-invert max-w-none">
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                            {message.text}
-                          </ReactMarkdown>
-                        </div>
+                        <>
+                          <div className="prose prose-sm prose-invert max-w-none">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                              {message.text}
+                            </ReactMarkdown>
+                          </div>
+
+                          {message.sources && message.sources.length > 0 && (
+                            <p className="mt-2 border-t border-white/10 pt-2 text-xs text-gray-400">
+                            Sources: {message.sources.join(', ')}
+                            </p>
+                          )}
+                        </>
                       )
                     ) : (
                       message.text
