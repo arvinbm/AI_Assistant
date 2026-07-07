@@ -50,7 +50,7 @@ The corpus is **mixed-language**: some documents are English, some are Persian, 
 - **Persian text normalization** — Persian text appears in inconsistent forms (Arabic vs Persian yeh/kaf, Arabic-Indic vs Persian digits, ZWNJ, diacritics, tatweel). The same word written two ways silently fails to match. All text is normalized to one canonical form, applied to **both documents and queries**. ASCII (English words, part numbers) is left untouched.
 - **Unified cross-lingual embeddings** — instead of partitioning by language (which breaks on mixed chunks), everything is embedded into **one shared semantic space** with **BGE-m3**, a multilingual model. This was validated on the real corpus: Farsi→Farsi, English→English, **English↔Farsi cross-lingual**, and mixed-chunk retrieval all work. A Persian question can surface the relevant English document and vice-versa.
 - **Language tagging** — each chunk is tagged `fa` / `en` / `mixed` / `unknown` in its metadata for debugging and optional weighting (not a hard filter).
-- **Reranking** — a multilingual cross-encoder reranker (BGE-reranker-v2-m3) re-scores the top candidates for sharper relevance across languages.
+- **Reranking** — a lightweight multilingual cross-encoder reranker (jina-reranker-v2-base-multilingual) re-scores the top candidates for sharper relevance across languages.
 
 Scanned / image-only PDFs (no extractable text) are skipped by design (no OCR), except one high-value document, which was OCR'd once into a searchable text sidecar.
 
@@ -106,7 +106,7 @@ Embeddings run **locally for free**; AWS is only used for **Claude Haiku generat
 | Embeddings | BGE-m3 (local, multilingual) — Titan optional |
 | Vector search | FAISS |
 | Keyword search | BM25 (hybrid retrieval) |
-| Reranking | BGE-reranker-v2-m3 (multilingual cross-encoder) |
+| Reranking | jina-reranker-v2-base-multilingual (multilingual cross-encoder) |
 | Generation | Claude Haiku (AWS Bedrock) |
 | Document storage | Amazon S3 (local-folder fallback) |
 | Frontend | React, TypeScript, Tailwind CSS |

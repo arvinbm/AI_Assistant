@@ -33,8 +33,10 @@ class Settings(BaseSettings):
     # Multilingual model id (1024-dim, matches EMBEDDING_DIM). Requires
     # `pip install -r requirements-ml.txt` when embedding_backend == "multilingual".
     multilingual_model_id: str = "BAAI/bge-m3"
-    # Multilingual cross-encoder used to rerank retrieved chunks.
-    reranker_model_id: str = "BAAI/bge-reranker-v2-m3"
+    # Multilingual cross-encoder used to rerank retrieved chunks. Jina v2 is
+    # lighter/faster than BGE-reranker-v2-m3 while staying multilingual (needs
+    # trust_remote_code, handled in rerank.py).
+    reranker_model_id: str = "jinaai/jina-reranker-v2-base-multilingual"
 
     model_config = SettingsConfigDict(
         env_file=".env",

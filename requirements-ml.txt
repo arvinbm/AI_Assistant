@@ -2,3 +2,4 @@
 # Only needed when EMBEDDING_BACKEND=multilingual.
 # Install with: pip install -r requirements-ml.txt
 sentence-transformers==3.3.1
+einops                          # required by the jina-reranker-v2 remote code

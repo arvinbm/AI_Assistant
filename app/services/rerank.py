@@ -5,9 +5,10 @@ chunk separately. A cross-encoder reranker scores the query and a candidate chun
 *together*, giving sharper relevance. So we retrieve a wider set from FAISS
 (e.g. top-30), rerank it here, and keep only the best few (e.g. top-8).
 
-Uses BGE-reranker-v2-m3 (multilingual, pairs with the BGE-m3 embeddings). The
-model is loaded lazily so the heavy dependency (sentence-transformers) is only
-needed when reranking is actually used.
+Uses jina-reranker-v2-base-multilingual (a lighter/faster multilingual
+cross-encoder that pairs with the BGE-m3 embeddings). The model is loaded lazily
+so the heavy dependency (sentence-transformers) is only needed when reranking is
+actually used.
 """
 from app.config import get_settings
 
@@ -35,7 +36,10 @@ def _get_reranker_model():
                 "Reranking requires sentence-transformers. "
                 "Install it with: pip install -r requirements-ml.txt"
             ) from exc
-        _reranker_model = CrossEncoder(settings.reranker_model_id)
+        # trust_remote_code: the Jina/GTE rerankers ship custom model code.
+        _reranker_model = CrossEncoder(
+            settings.reranker_model_id, trust_remote_code=True
+        )
     return _reranker_model
 
 
