@@ -15,11 +15,10 @@ class Settings(BaseSettings):
     aws_access_key_id: str | None = None
     aws_secret_access_key: str | None = None
 
-    # Document storage
-    s3_bucket: str | None = None
-    # Set True only when real AWS credentials + bucket are configured;
-    # otherwise files are saved to the local uploads/ folder.
-    use_s3: bool = False
+    # Where documents and the FAISS index are stored. Locally this is ./uploads;
+    # in production an Azure Files share is mounted here so uploads and the index
+    # persist across restarts. Set UPLOAD_DIR to the mount path when deploying.
+    upload_dir: str = "uploads"
 
     # AWS Bedrock model IDs
     bedrock_embedding_model_id: str = "amazon.titan-embed-text-v2:0"

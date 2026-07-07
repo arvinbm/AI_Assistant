@@ -48,9 +48,8 @@ def test_search_empty_store_returns_empty_list():
 
 
 def test_save_and_load_round_trip(monkeypatch, tmp_path):
-    # Persist to a temp local folder, not the real uploads/ or S3.
-    monkeypatch.setattr(storage.settings, "use_s3", False)
-    monkeypatch.setattr(storage, "LOCAL_UPLOAD_DIR", tmp_path)
+    # Persist to a temp folder, not the real uploads/.
+    monkeypatch.setattr(storage, "UPLOAD_DIR", tmp_path)
 
     store = VectorStore()
     store.add([_vec(1), _vec(2)], ["A", "B"], source="doc.pdf")
@@ -65,8 +64,7 @@ def test_save_and_load_round_trip(monkeypatch, tmp_path):
 
 
 def test_load_with_nothing_persisted_returns_empty(monkeypatch, tmp_path):
-    monkeypatch.setattr(storage.settings, "use_s3", False)
-    monkeypatch.setattr(storage, "LOCAL_UPLOAD_DIR", tmp_path)  # empty dir, no files
+    monkeypatch.setattr(storage, "UPLOAD_DIR", tmp_path)  # empty dir, no files
 
     store = VectorStore.load()
     assert store.index.ntotal == 0
