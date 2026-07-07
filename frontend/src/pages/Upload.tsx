@@ -1,14 +1,35 @@
 import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { uploadDocument, type UploadResult } from '../api'
 
 function Upload() {
-  // The file the user has selected (null until they pick one).
+  // The selected file, the in-flight state, and the result/error of an upload.
   const [file, setFile] = useState<File | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
+  const [result, setResult] = useState<UploadResult | null>(null)
+  const [error, setError] = useState<string | null>(null)
   // A handle to the hidden file input so the drop zone can open it.
   const inputRef = useRef<HTMLInputElement>(null)
 
   function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     setFile(event.target.files?.[0] ?? null)
+    setResult(null) // clear any previous result when a new file is chosen
+    setError(null)
+  }
+
+  async function handleUpload() {
+    if (!file || isUploading) return
+    setIsUploading(true)
+    setResult(null)
+    setError(null)
+    try {
+      const data = await uploadDocument(file)
+      setResult(data)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Upload failed.')
+    } finally {
+      setIsUploading(false)
+    }
   }
 
   return (
@@ -76,15 +97,34 @@ function Upload() {
             {/* Upload button — enabled only once a file is selected. */}
             <button
               type="button"
-              disabled={!file}
+              onClick={handleUpload}
+              disabled={!file || isUploading}
               className={`font-display mt-6 w-full rounded-lg py-3 text-lg font-bold text-white shadow-md transition duration-200 ${
-                file
+                file && !isUploading
                   ? 'bg-habasit hover:bg-green-600'
                   : 'cursor-not-allowed bg-gray-600'
               }`}
             >
-              Upload
+              {isUploading ? 'Uploading…' : 'Upload'}
             </button>
+
+            {/* Result / error message */}
+            {result?.status === 'ingested' && (
+              <p className="font-display mt-4 rounded-lg bg-green-900/50 px-4 py-3 text-center text-green-200">
+                ✓ Added <span className="font-semibold break-all">{result.filename}</span>{' '}
+                to the knowledge base ({result.chunks} chunks).
+              </p>
+            )}
+            {result?.status === 'skipped' && (
+              <p className="font-display mt-4 rounded-lg bg-amber-900/50 px-4 py-3 text-center text-amber-200">
+                ⚠ Skipped <span className="font-semibold break-all">{result.filename}</span> — {result.reason}.
+              </p>
+            )}
+            {error && (
+              <p className="font-display mt-4 rounded-lg bg-red-900/50 px-4 py-3 text-center text-red-200">
+                {error}
+              </p>
+            )}
           </div>
         </main>
       </div>

@@ -22,3 +22,38 @@ export async function askQuestion(question: string): Promise<ChatResponse> {
 
   return response.json()
 }
+
+export type UploadResult = {
+  status: 'ingested' | 'skipped'
+  filename: string
+  chunks?: number // present when ingested
+  reason?: string // present when skipped
+}
+
+/** Upload a document to be ingested into the knowledge base. */
+export async function uploadDocument(file: File): Promise<UploadResult> {
+  // Files are sent as multipart/form-data; the field name "file" must match the
+  // FastAPI endpoint's parameter. Do NOT set Content-Type — the browser adds the
+  // multipart boundary automatically.
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const response = await fetch(`${API_BASE}/upload`, {
+    method: 'POST',
+    body: formData,
+  })
+
+  if (!response.ok) {
+    // The backend returns 400 with { detail: "..." } for unsupported types.
+    let message = `Upload failed (${response.status})`
+    try {
+      const data = await response.json()
+      if (data?.detail) message = data.detail
+    } catch {
+      // response wasn't JSON — keep the generic message
+    }
+    throw new Error(message)
+  }
+
+  return response.json()
+}
