@@ -24,3 +24,16 @@ __pycache__/
 # Docs / CI not needed in the image
 README.md
 .github/
+docs/
+
+# Large data — NOT baked into the image (index is seeded to the Azure Files volume)
+uploads/
+data/
+
+# Frontend build artifacts — reinstalled/rebuilt inside the image
+frontend/node_modules/
+frontend/dist/
+
+# Tests / scripts not needed at runtime
+tests/
+scripts/
