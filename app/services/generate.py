@@ -4,14 +4,8 @@ Builds a grounded prompt from the retrieved chunks and the user's question, call
 Claude Haiku via Bedrock, and returns the answer. The model is instructed to
 answer ONLY from the provided context (and say so when the answer isn't there),
 which keeps responses grounded and avoids hallucination.
-
-Two entry points:
-- ``generate_answer`` waits for the full answer and returns it as a string.
-- ``generate_answer_stream`` yields the answer in pieces as it is generated, so
-  the UI can show text as it arrives instead of waiting for the whole reply.
 """
 import json
-from collections.abc import Iterator
 
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
@@ -48,33 +42,6 @@ def generate_answer(question: str, chunks: list[tuple[dict, float]]) -> str:
         raise RuntimeError(f"Bedrock generation failed: {exc}") from exc
 
     return payload["content"][0]["text"]
-
-
-def generate_answer_stream(
-    question: str, chunks: list[tuple[dict, float]]
-) -> Iterator[str]:
-    """Yield the answer text in pieces as Claude generates it (Bedrock streaming)."""
-    body = _build_request(question, chunks)
-    client = _bedrock_client()
-    try:
-        response = client.invoke_model_with_response_stream(
-            modelId=settings.bedrock_generation_model_id,
-            body=body,
-            contentType="application/json",
-            accept="application/json",
-        )
-        for event in response["body"]:
-            chunk = event.get("chunk")
-            if not chunk:
-                continue
-            data = json.loads(chunk["bytes"])
-            # Anthropic streams text in "content_block_delta" events.
-            if data.get("type") == "content_block_delta":
-                text = data.get("delta", {}).get("text", "")
-                if text:
-                    yield text
-    except (BotoCoreError, ClientError) as exc:
-        raise RuntimeError(f"Bedrock generation failed: {exc}") from exc
 
 
 def _build_request(question: str, chunks: list[tuple[dict, float]]) -> str:

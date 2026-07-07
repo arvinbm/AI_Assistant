@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { askQuestionStream } from '../api'
+import { askQuestion } from '../api'
 
 type Message = {
   role: 'user' | 'assistant'
@@ -10,7 +10,7 @@ type Message = {
 }
 
 function Chat() {
-  // The conversation so far, the input text, and whether a reply is streaming.
+  // The conversation so far, the input text, and whether a reply is loading.
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -24,9 +24,9 @@ function Chat() {
   async function handleSend(event: React.SyntheticEvent) {
     event.preventDefault() // stop the form from reloading the page
     const question = input.trim()
-    if (!question || isLoading) return // ignore empty sends / while streaming
+    if (!question || isLoading) return // ignore empty sends / while loading
 
-    // Add the user's message AND an empty assistant bubble to fill as tokens arrive.
+    // Add the user's message AND an empty assistant bubble (shows "Thinking…").
     setMessages((prev) => [
       ...prev,
       { role: 'user', text: question },
@@ -34,24 +34,22 @@ function Chat() {
     ])
     setInput('') // clear the box
 
-    // Append text to the last message (the assistant bubble we just added).
-    function updateLast(updater: (text: string) => string) {
+    // Replace the empty assistant bubble (the last message) with some text.
+    function setLastText(text: string) {
       setMessages((prev) => {
         const updated = [...prev]
-        const last = updated[updated.length - 1]
-        updated[updated.length - 1] = { ...last, text: updater(last.text) }
+        updated[updated.length - 1] = { role: 'assistant', text }
         return updated
       })
     }
 
     setIsLoading(true)
     try {
-      await askQuestionStream(question, {
-        onToken: (text) => updateLast((current) => current + text),
-      })
+      const data = await askQuestion(question)
+      setLastText(data.answer)
     } catch {
-      updateLast(
-        () => 'Sorry — I could not reach the assistant. Is the backend running?',
+      setLastText(
+        'Sorry — I could not reach the assistant. Is the backend running?',
       )
     } finally {
       setIsLoading(false)

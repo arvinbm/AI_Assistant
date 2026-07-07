@@ -1,15 +1,13 @@
 """FastAPI application entrypoint for the AI Assistant backend."""
-import json
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.config import get_settings
 from app.services.embeddings import embed_text
-from app.services.generate import generate_answer, generate_answer_stream
+from app.services.generate import generate_answer
 from app.services.ingest import ingest_document
 from app.services.keyword_search import KeywordIndex
 from app.services.rerank import rerank
@@ -120,32 +118,3 @@ def chat(request: ChatRequest) -> dict:
     # Unique source documents, preserving order.
     sources = list(dict.fromkeys(meta["source"] for meta, _score in chunks))
     return {"answer": answer, "sources": sources}
-
-
-@app.post("/chat/stream", tags=["chat"])
-def chat_stream(request: ChatRequest) -> StreamingResponse:
-    """Like /chat, but stream the answer as it is generated.
-
-    Emits newline-delimited JSON (NDJSON): first a `sources` line, then a
-    `token` line for each piece of text as Claude produces it.
-    """
-    chunks = retrieve(request.question, get_FAISS_index(), get_BM25_index())
-
-    def event_stream():
-        if not chunks:
-            yield json.dumps({"type": "sources", "sources": []}) + "\n"
-            yield json.dumps(
-                {
-                    "type": "token",
-                    "text": "I don't have information about that in the "
-                    "available documents.",
-                }
-            ) + "\n"
-            return
-
-        sources = list(dict.fromkeys(meta["source"] for meta, _score in chunks))
-        yield json.dumps({"type": "sources", "sources": sources}) + "\n"
-        for piece in generate_answer_stream(request.question, chunks):
-            yield json.dumps({"type": "token", "text": piece}) + "\n"
-
-    return StreamingResponse(event_stream(), media_type="application/x-ndjson")
