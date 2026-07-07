@@ -2,7 +2,23 @@
 
 An AI-powered document assistant built for an industrial belt assembly company. It lets staff query internal company documents in natural language — in **Persian (Farsi), English, or a mix of both**.
 
-Built with **Python**, **FastAPI**, a local **multilingual embedding model (BGE-m3)**, **FAISS**, **Amazon S3**, and **Claude Haiku (AWS Bedrock)** for answer generation.
+Built with **Python**, **FastAPI**, a local **multilingual embedding model (BGE-m3)**, **FAISS**, **Amazon S3**, and **Claude Haiku (AWS Bedrock)** for answer generation. The frontend is a **React + TypeScript (Vite + Tailwind)** single-page app, served by FastAPI as one deployable.
+
+---
+
+## Screenshots
+
+**Landing page**
+
+![Landing page](docs/screenshots/landing.jpg)
+
+**Chat — grounded, cited answers in Persian & English**
+
+![Chat page](docs/screenshots/chat.jpg)
+
+**Upload — add documents to the knowledge base**
+
+![Upload page](docs/screenshots/upload.jpg)
 
 ---
 
