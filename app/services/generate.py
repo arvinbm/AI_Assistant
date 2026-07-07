@@ -20,9 +20,8 @@ MAX_TOKENS = 1000
 SYSTEM_PROMPT = (
     "You are an assistant that answers questions about a company's internal "
     "documents. Answer using ONLY the provided context. If the answer is not in "
-    "the context, say you don't have that information — do not guess. Cite the "
-    "source document(s) you used. Reply in the same language as the question "
-    "(Persian or English)."
+    "the context, say you don't have that information — do not guess. Reply in "
+    "the same language as the question (Persian or English)."
 )
 
 
