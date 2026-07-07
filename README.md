@@ -87,11 +87,13 @@ Embeddings run **locally for free**; AWS is only used for **Claude Haiku generat
 - `/chat` endpoint: normalize the question, retrieve via **hybrid search** (vector + BM25 keyword), **rerank** the merged candidates, build a grounded prompt, and answer with **Claude Haiku** — grounded and cited. Working end-to-end on the real corpus.
 - **Hybrid scoring** — pure vector + reranker handles semantic questions, but the reranker underrates exact-entity lookups (it scores them as low as off-topic). So results are kept if they clear the rerank threshold **or** are a strong keyword match (a *keyword-rescue gate*). A **distinctive-token search** (querying only the rarest tokens) stops common words from drowning out exact codes. This makes part-number and customer-name lookups work, not just semantic questions, while off-topic queries still return nothing.
 
-### Phase 4 — Frontend
-- React/TypeScript chat interface + document upload panel, source citations, Tailwind CSS, mobile-responsive.
+### Phase 4 — Frontend ✅
+- **React + TypeScript (Vite + Tailwind)** single-page app: a chat interface (Markdown rendering, Persian **RTL**, cited sources) and a drag-and-drop document upload panel.
+- Answers cite only the documents the model actually used; deterministic generation (`temperature 0`).
+- Built to static files and **served by FastAPI as one deployable** (client-side routing with an `index.html` fallback).
 
 ### Phase 5 — Production Deployment
-- Deploy to Microsoft Azure via Docker Compose; env-based settings; automated CD via GitHub Actions on merge to `main`.
+- Deploy to Microsoft Azure via Docker; env-based settings; automated CD via GitHub Actions on merge to `main`.
 
 ---
 
