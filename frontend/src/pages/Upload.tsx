@@ -6,15 +6,27 @@ function Upload() {
   // The selected file, the in-flight state, and the result/error of an upload.
   const [file, setFile] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
   const [result, setResult] = useState<UploadResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   // A handle to the hidden file input so the drop zone can open it.
   const inputRef = useRef<HTMLInputElement>(null)
 
-  function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
-    setFile(event.target.files?.[0] ?? null)
-    setResult(null) // clear any previous result when a new file is chosen
+  // Select a file (from the picker or a drop) and clear any previous result.
+  function selectFile(selected: File | null) {
+    setFile(selected)
+    setResult(null)
     setError(null)
+  }
+
+  function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    selectFile(event.target.files?.[0] ?? null)
+  }
+
+  function handleDrop(event: React.DragEvent) {
+    event.preventDefault()
+    setIsDragging(false)
+    selectFile(event.dataTransfer.files?.[0] ?? null)
   }
 
   async function handleUpload() {
@@ -73,10 +85,20 @@ function Upload() {
               className="hidden"
             />
 
-            {/* Click the zone to open the file picker; shows the chosen file. */}
+            {/* Click to open the picker, or drag a file onto the zone. */}
             <div
               onClick={() => inputRef.current?.click()}
-              className="mt-6 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-500 px-6 py-12 text-center transition hover:border-habasit"
+              onDragOver={(event) => {
+                event.preventDefault()
+                setIsDragging(true)
+              }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={handleDrop}
+              className={`mt-6 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-12 text-center transition ${
+                isDragging
+                  ? 'border-habasit bg-habasit/10'
+                  : 'border-gray-500 hover:border-habasit'
+              }`}
             >
               {file ? (
                 <p className="font-display font-semibold break-all text-white">
