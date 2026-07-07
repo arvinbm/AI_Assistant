@@ -20,8 +20,8 @@ from app.services.normalize import normalize
 from app.services.rerank import rerank
 from app.services.vector_store import VectorStore
 
-# How many candidates each retriever contributes.
-CANDIDATE_COUNT = 15
+# How many candidates each retriever contributes (also the reranker's input size).
+CANDIDATE_COUNT = 10
 # How many chunks to return at most.
 TOP_K = 8
 # Minimum reranker score (0-1) for a chunk to count as semantically relevant.
