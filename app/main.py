@@ -1,8 +1,11 @@
 """FastAPI application entrypoint for the AI Assistant backend."""
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from app.config import get_settings
@@ -15,6 +18,10 @@ from app.services.retrieve import retrieve
 from app.services.vector_store import VectorStore
 
 settings = get_settings()
+
+# The built React frontend (produced by `npm run build` in frontend/). Served in
+# production from the same origin as the API; absent in dev/CI (Vite serves it).
+FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 
 # The knowledge base, loaded once and shared across requests.
 _store: VectorStore | None = None
@@ -73,9 +80,9 @@ class ChatRequest(BaseModel):
     question: str
 
 
-@app.get("/", tags=["meta"])
-def root() -> dict[str, str]:
-    """Basic service banner."""
+@app.get("/api", tags=["meta"])
+def api_info() -> dict[str, str]:
+    """Basic service banner (the frontend itself is served at /)."""
     return {"service": settings.app_name, "version": app.version}
 
 
@@ -126,3 +133,27 @@ def chat(request: ChatRequest) -> dict:
         # Model didn't report usage — fall back to all retrieved sources.
         sources = list(dict.fromkeys(meta["source"] for meta, _score in chunks))
     return {"answer": answer, "sources": sources}
+
+
+# --- Serve the built frontend (single deployable app) ---
+# Only when the build exists (production). In dev/CI the Vite server serves the
+# UI on :5173, so this is skipped and the app is API-only.
+if FRONTEND_DIST.is_dir():
+    # Hashed JS/CSS bundles live under /assets.
+    app.mount(
+        "/assets",
+        StaticFiles(directory=FRONTEND_DIST / "assets"),
+        name="assets",
+    )
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    def serve_spa(full_path: str) -> FileResponse:
+        """Serve a real static file if it exists, else index.html.
+
+        Returning index.html for unknown paths lets client-side routing work, so
+        refreshing on /chat or /upload still loads the app.
+        """
+        candidate = FRONTEND_DIST / full_path
+        if full_path and candidate.is_file():
+            return FileResponse(candidate)
+        return FileResponse(FRONTEND_DIST / "index.html")

@@ -12,7 +12,7 @@ def test_health_returns_ok():
     assert response.json()["status"] == "ok"
 
 
-def test_root_returns_service_banner():
-    response = client.get("/")
+def test_api_info_returns_service_banner():
+    response = client.get("/api")
     assert response.status_code == 200
     assert "service" in response.json()
