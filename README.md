@@ -2,7 +2,7 @@
 
 An AI-powered document assistant built for an industrial belt assembly company. It lets staff query internal company documents in natural language — in **Persian (Farsi), English, or a mix of both**.
 
-Built with **Python**, **FastAPI**, a local **multilingual embedding model (BGE-m3)**, **FAISS**, **Amazon S3**, and **Claude Haiku (AWS Bedrock)** for answer generation. The frontend is a **React + TypeScript (Vite + Tailwind)** single-page app, served by FastAPI as one deployable.
+Built with **Python**, **FastAPI**, a local **multilingual embedding model (BGE-m3)**, **FAISS**, an **Azure Files** volume for persistent storage, and **Claude Haiku (AWS Bedrock)** for answer generation. The frontend is a **React + TypeScript (Vite + Tailwind)** single-page app, served by FastAPI as one deployable.
 
 ---
 
@@ -24,7 +24,7 @@ Built with **Python**, **FastAPI**, a local **multilingual embedding model (BGE-
 
 ## Architecture
 
-Documents are extracted to text, **normalized**, split into chunks, embedded with a **multilingual model (BGE-m3)**, and indexed in a **FAISS** vector store (persisted to S3 or locally). At query time the question is normalized and run through **hybrid retrieval** — semantic **vector search** plus **BM25 keyword search** — whose results are merged, **reranked** with a cross-encoder, and the best are passed to **Claude Haiku**, which generates a grounded, cited answer.
+Documents are extracted to text, **normalized**, split into chunks, embedded with a **multilingual model (BGE-m3)**, and indexed in a **FAISS** vector store (persisted to an Azure Files volume or locally). At query time the question is normalized and run through **hybrid retrieval** — semantic **vector search** plus **BM25 keyword search** — whose results are merged, **reranked** with a cross-encoder, and the best are passed to **Claude Haiku**, which generates a grounded, cited answer.
 
 ```
 Ingestion:   document → extract (PyMuPDF) → normalize (Farsi) → chunk
@@ -39,7 +39,7 @@ Query:       question → normalize → ┌─ vector search (BGE-m3 → FAISS) 
 
 **Why hybrid:** pure vector search captures meaning but misses **exact tokens** — part numbers, model codes, customer names (e.g. `8M-1200`). BM25 keyword search matches those exactly, so lookups by code or name work alongside semantic questions.
 
-Raw files live in **Amazon S3**; the FAISS index + metadata are persisted there too, so the deployed app loads a pre-built index on startup and never needs the original corpus.
+Raw files and the FAISS index + metadata are persisted on an **Azure Files** volume (a mounted file share), so uploaded documents survive container restarts and the deployed app loads a pre-built index on startup without needing the original corpus.
 
 ---
 
@@ -78,8 +78,8 @@ Embeddings run **locally for free**; AWS is only used for **Claude Haiku generat
 ### Phase 2 — Document Ingestion Pipeline ✅
 - Extract text from PDFs with **PyMuPDF**; skip scanned/empty docs (no OCR).
 - **Normalize** Persian/mixed text; split into overlapping chunks.
-- Embed chunks with **BGE-m3** (batched, ~4× faster); store raw files in S3/local; tag each chunk with its language.
-- Build and persist a **FAISS** index (+ chunk text/source/lang) to S3/local.
+- Embed chunks with **BGE-m3** (batched, ~4× faster); store raw files on the mounted volume (local fallback); tag each chunk with its language.
+- Build and persist a **FAISS** index (+ chunk text/source/lang) to the mounted volume (local fallback).
 - Bulk-ingest the base corpus one-time via `scripts/build_index.py`, and accept ongoing uploads via **`POST /upload`**.
 - The real corpus (~3,000 mixed Farsi/English documents) has been ingested into a **32,607-vector** index and validated end-to-end.
 
@@ -108,7 +108,7 @@ Embeddings run **locally for free**; AWS is only used for **Claude Haiku generat
 | Keyword search | BM25 (hybrid retrieval) |
 | Reranking | jina-reranker-v2-base-multilingual (multilingual cross-encoder) |
 | Generation | Claude Haiku (AWS Bedrock) |
-| Document storage | Amazon S3 (local-folder fallback) |
+| Document storage | Azure Files volume (local-folder fallback) |
 | Frontend | React, TypeScript, Tailwind CSS |
 | Infra | Docker, Docker Compose, Azure App Services |
 | CI/CD | GitHub Actions |
