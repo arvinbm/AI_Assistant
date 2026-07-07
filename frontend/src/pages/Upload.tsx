@@ -1,6 +1,16 @@
+import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 function Upload() {
+  // The file the user has selected (null until they pick one).
+  const [file, setFile] = useState<File | null>(null)
+  // A handle to the hidden file input so the drop zone can open it.
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    setFile(event.target.files?.[0] ?? null)
+  }
+
   return (
     <div
       className="relative min-h-screen bg-cover bg-center"
@@ -33,18 +43,45 @@ function Upload() {
               Add a PDF to the assistant&apos;s knowledge base.
             </p>
 
-            {/* Drop / pick zone (static for now — wired up in 7.2) */}
-            <div className="mt-6 flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-500 px-6 py-12 text-center">
-              <p className="font-display text-gray-300">
-                Drag a file here, or click to choose
-              </p>
-              <p className="font-display mt-1 text-sm text-gray-500">PDF files</p>
+            {/* Hidden file input, opened by clicking the zone below. */}
+            <input
+              ref={inputRef}
+              type="file"
+              accept=".pdf,application/pdf"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+
+            {/* Click the zone to open the file picker; shows the chosen file. */}
+            <div
+              onClick={() => inputRef.current?.click()}
+              className="mt-6 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-500 px-6 py-12 text-center transition hover:border-habasit"
+            >
+              {file ? (
+                <p className="font-display font-semibold break-all text-white">
+                  {file.name}
+                </p>
+              ) : (
+                <>
+                  <p className="font-display text-gray-300">
+                    Drag a file here, or click to choose
+                  </p>
+                  <p className="font-display mt-1 text-sm text-gray-500">
+                    PDF files
+                  </p>
+                </>
+              )}
             </div>
 
-            {/* Upload button (inert for now) */}
+            {/* Upload button — enabled only once a file is selected. */}
             <button
               type="button"
-              className="font-display mt-6 w-full rounded-lg bg-habasit py-3 text-lg font-bold text-white shadow-md transition duration-200 hover:bg-green-600"
+              disabled={!file}
+              className={`font-display mt-6 w-full rounded-lg py-3 text-lg font-bold text-white shadow-md transition duration-200 ${
+                file
+                  ? 'bg-habasit hover:bg-green-600'
+                  : 'cursor-not-allowed bg-gray-600'
+              }`}
             >
               Upload
             </button>
