@@ -114,7 +114,15 @@ def chat(request: ChatRequest) -> dict:
             "answer": "I don't have information about that in the available documents.",
             "sources": [],
         }
-    answer = generate_answer(request.question, chunks)
-    # Unique source documents, preserving order.
-    sources = list(dict.fromkeys(meta["source"] for meta, _score in chunks))
+    answer, used = generate_answer(request.question, chunks)
+    if used:
+        # Only the sources the model reports it actually used (deduped, in order).
+        sources = list(
+            dict.fromkeys(
+                chunks[i - 1][0]["source"] for i in used if 1 <= i <= len(chunks)
+            )
+        )
+    else:
+        # Model didn't report usage — fall back to all retrieved sources.
+        sources = list(dict.fromkeys(meta["source"] for meta, _score in chunks))
     return {"answer": answer, "sources": sources}

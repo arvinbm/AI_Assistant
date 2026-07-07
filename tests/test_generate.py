@@ -24,12 +24,34 @@ def _fake_client(answer_text):
 
 
 def test_generate_returns_answer_text(monkeypatch):
-    fake = _fake_client("It is oil resistant (source: spec.pdf).")
+    fake = _fake_client("It is oil resistant. [[USED: 1]]")
     monkeypatch.setattr(generate.boto3, "client", lambda *a, **k: fake)
 
-    answer = generate_answer("Is it oil resistant?", CHUNKS)
+    answer, used = generate_answer("Is it oil resistant?", CHUNKS)
 
-    assert answer == "It is oil resistant (source: spec.pdf)."
+    # The [[USED: ...]] marker is parsed out and stripped from the answer.
+    assert answer == "It is oil resistant."
+    assert used == [1]
+
+
+def test_generate_parses_multiple_used_chunks(monkeypatch):
+    fake = _fake_client("Answer text. [[USED: 1, 2]]")
+    monkeypatch.setattr(generate.boto3, "client", lambda *a, **k: fake)
+
+    answer, used = generate_answer("q", CHUNKS)
+
+    assert answer == "Answer text."
+    assert used == [1, 2]
+
+
+def test_generate_no_marker_returns_empty_used(monkeypatch):
+    fake = _fake_client("Answer without a marker.")
+    monkeypatch.setattr(generate.boto3, "client", lambda *a, **k: fake)
+
+    answer, used = generate_answer("q", CHUNKS)
+
+    assert answer == "Answer without a marker."
+    assert used == []
 
 
 def test_generate_sends_grounded_prompt_with_context(monkeypatch):

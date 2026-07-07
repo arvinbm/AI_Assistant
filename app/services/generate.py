@@ -6,6 +6,7 @@ answer ONLY from the provided context (and say so when the answer isn't there),
 which keeps responses grounded and avoids hallucination.
 """
 import json
+import re
 
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
@@ -21,12 +22,27 @@ SYSTEM_PROMPT = (
     "You are an assistant that answers questions about a company's internal "
     "documents. Answer using ONLY the provided context. If the answer is not in "
     "the context, say you don't have that information — do not guess. Reply in "
-    "the same language as the question (Persian or English)."
+    "the same language as the question (Persian or English).\n\n"
+    'The context is a numbered list of chunks like "[1] (source: ...)". After '
+    "your answer, on a final separate line, list the numbers of the chunks you "
+    "actually used, in exactly this format: [[USED: 1, 3]]. If you used none, "
+    "write [[USED:]]. Do not mention the chunks or this line anywhere else."
 )
 
+# Matches the trailing "[[USED: 1, 3]]" marker the model appends.
+_USED_RE = re.compile(r"\[\[USED:\s*([\d,\s]*)\]\]")
 
-def generate_answer(question: str, chunks: list[tuple[dict, float]]) -> str:
-    """Generate a grounded answer to `question` from the retrieved `chunks`."""
+
+def generate_answer(
+    question: str, chunks: list[tuple[dict, float]]
+) -> tuple[str, list[int]]:
+    """Generate a grounded answer to `question` from the retrieved `chunks`.
+
+    Returns ``(answer_text, used_chunk_numbers)`` where the numbers are the
+    1-based indices of the context chunks the model reports it actually used
+    (parsed from a trailing ``[[USED: ...]]`` marker, which is stripped from the
+    returned answer).
+    """
     body = _build_request(question, chunks)
     client = _bedrock_client()
     try:
@@ -40,7 +56,21 @@ def generate_answer(question: str, chunks: list[tuple[dict, float]]) -> str:
     except (BotoCoreError, ClientError) as exc:
         raise RuntimeError(f"Bedrock generation failed: {exc}") from exc
 
-    return payload["content"][0]["text"]
+    return _split_used_chunks(payload["content"][0]["text"])
+
+
+def _split_used_chunks(raw: str) -> tuple[str, list[int]]:
+    """Split model output into (clean answer, used chunk numbers).
+
+    The model appends a marker like ``[[USED: 1, 3]]`` naming the chunks it used;
+    parse the numbers out and strip the marker from the visible answer.
+    """
+    match = _USED_RE.search(raw)
+    if not match:
+        return raw.strip(), []
+    numbers = [int(n) for n in re.findall(r"\d+", match.group(1))]
+    answer = _USED_RE.sub("", raw).strip()
+    return answer, numbers
 
 
 def _build_request(question: str, chunks: list[tuple[dict, float]]) -> str:
@@ -51,6 +81,7 @@ def _build_request(question: str, chunks: list[tuple[dict, float]]) -> str:
         {
             "anthropic_version": "bedrock-2023-05-31",
             "max_tokens": MAX_TOKENS,
+            "temperature": 0,  # deterministic: same question -> same answer
             "system": SYSTEM_PROMPT,
             "messages": [{"role": "user", "content": user_message}],
         }
