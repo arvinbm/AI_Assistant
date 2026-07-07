@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -10,14 +10,21 @@ type Message = {
 }
 
 function Chat() {
-  // The conversation so far, and the current text in the input box.
+  // The conversation so far, the input text, and whether a reply is streaming.
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+
+  // Auto-scroll to the newest message whenever the thread changes.
+  const bottomRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+  }, [messages])
 
   async function handleSend(event: React.SyntheticEvent) {
     event.preventDefault() // stop the form from reloading the page
     const question = input.trim()
-    if (!question) return // ignore empty sends
+    if (!question || isLoading) return // ignore empty sends / while streaming
 
     // Add the user's message AND an empty assistant bubble to fill as tokens arrive.
     setMessages((prev) => [
@@ -37,6 +44,7 @@ function Chat() {
       })
     }
 
+    setIsLoading(true)
     try {
       await askQuestionStream(question, {
         onToken: (text) => updateLast((current) => current + text),
@@ -45,6 +53,8 @@ function Chat() {
       updateLast(
         () => 'Sorry — I could not reach the assistant. Is the backend running?',
       )
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -113,6 +123,8 @@ function Chat() {
                 </div>
               ))
             )}
+            {/* Invisible anchor we scroll to after each new message. */}
+            <div ref={bottomRef} />
           </div>
         </main>
 
@@ -126,14 +138,20 @@ function Chat() {
               type="text"
               value={input}
               onChange={(event) => setInput(event.target.value)}
+              disabled={isLoading}
               placeholder="Ask a question…"
-              className="font-display flex-1 rounded-lg border border-gray-600 bg-gray-900/80 px-4 py-3 text-white placeholder:text-gray-400 focus:border-habasit focus:outline-none"
+              className="font-display flex-1 rounded-lg border border-gray-600 bg-gray-900/80 px-4 py-3 text-white placeholder:text-gray-400 focus:border-habasit focus:outline-none disabled:opacity-60"
             />
             <button
               type="submit"
-              className="font-display rounded-lg bg-habasit px-6 py-3 font-bold text-white transition duration-200 hover:bg-green-600"
+              disabled={isLoading}
+              className={`font-display rounded-lg px-6 py-3 font-bold text-white shadow-md transition duration-200 ${
+                isLoading
+                  ? 'cursor-not-allowed bg-gray-600'
+                  : 'bg-habasit hover:bg-green-600'
+              }`}
             >
-              Send
+              {isLoading ? 'Sending…' : 'Send'}
             </button>
           </form>
         </footer>
