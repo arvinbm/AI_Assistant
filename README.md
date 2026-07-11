@@ -4,7 +4,7 @@ An AI-powered document assistant built for an industrial belt assembly company. 
 
 Built with **Python**, **FastAPI**, a local **multilingual embedding model (BGE-m3)**, **FAISS**, an **Azure Files** volume for persistent storage, and **Claude Haiku (AWS Bedrock)** for answer generation. The frontend is a **React + TypeScript (Vite + Tailwind)** single-page app, served by FastAPI as one deployable.
 
-**🌐 Live demo:** https://ai-assistant.graydesert-00429b11.canadacentral.azurecontainerapps.io/
+**🌐 Status:** Deployed and running live on **Azure Container Apps** *(private demo — access available on request).*
 
 ---
 
