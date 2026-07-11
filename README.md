@@ -98,7 +98,6 @@ Embeddings run **locally for free**; AWS is only used for **Claude Haiku generat
 - **Deployed to Azure Container Apps** — the image is built in **Azure Container Registry** (`az acr build`) and run as a single container serving both the API and the React frontend.
 - **Azure Files volume** mounted at `uploads/` for persistent storage of the FAISS index and uploaded documents (survives container restarts).
 - Configuration via environment variables; **AWS credentials stored as Container App secrets**.
-- *(Next step: automated CD via GitHub Actions on push to `main`.)*
 
 ---
 
