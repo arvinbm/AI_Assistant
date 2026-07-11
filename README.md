@@ -4,6 +4,8 @@ An AI-powered document assistant built for an industrial belt assembly company. 
 
 Built with **Python**, **FastAPI**, a local **multilingual embedding model (BGE-m3)**, **FAISS**, an **Azure Files** volume for persistent storage, and **Claude Haiku (AWS Bedrock)** for answer generation. The frontend is a **React + TypeScript (Vite + Tailwind)** single-page app, served by FastAPI as one deployable.
 
+**🌐 Live demo:** https://ai-assistant.graydesert-00429b11.canadacentral.azurecontainerapps.io/
+
 ---
 
 ## Screenshots
@@ -92,8 +94,11 @@ Embeddings run **locally for free**; AWS is only used for **Claude Haiku generat
 - Answers cite only the documents the model actually used; deterministic generation (`temperature 0`).
 - Built to static files and **served by FastAPI as one deployable** (client-side routing with an `index.html` fallback).
 
-### Phase 5 — Production Deployment
-- Deploy to Microsoft Azure via Docker; env-based settings; automated CD via GitHub Actions on merge to `main`.
+### Phase 5 — Production Deployment ✅
+- **Deployed to Azure Container Apps** — the image is built in **Azure Container Registry** (`az acr build`) and run as a single container serving both the API and the React frontend.
+- **Azure Files volume** mounted at `uploads/` for persistent storage of the FAISS index and uploaded documents (survives container restarts).
+- Configuration via environment variables; **AWS credentials stored as Container App secrets**.
+- *(Next step: automated CD via GitHub Actions on push to `main`.)*
 
 ---
 
@@ -110,7 +115,7 @@ Embeddings run **locally for free**; AWS is only used for **Claude Haiku generat
 | Generation | Claude Haiku (AWS Bedrock) |
 | Document storage | Azure Files volume (local-folder fallback) |
 | Frontend | React, TypeScript, Tailwind CSS |
-| Infra | Docker, Docker Compose, Azure App Services |
+| Infra | Docker, Azure Container Apps, Azure Container Registry, Azure Files |
 | CI/CD | GitHub Actions |
 
 ---
